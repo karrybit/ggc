@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -24,45 +26,48 @@ func NewGitHubClientWithAccessToken(accessToken string) *gitHubClient {
 	return &gitHubClient{client: client}
 }
 
-func NewGitHubClientWithBasic(username string, password string, oneTimePassword *string) *gitHubClient {
+func NewGitHubClientWithBasic(username string, password string) (*gitHubClient, error) {
+	fmt.Print("one time token> ")
+	if err := bufio.NewWriter(os.Stdout).Flush(); err != nil {
+		return nil, err
+	}
+
+	var oneTimePassword string
+	if _, err := fmt.Scan(&oneTimePassword); err != nil {
+		return nil, err
+	}
+
 	transport := github.BasicAuthTransport{
 		Username: strings.TrimSpace(username),
 		Password: strings.TrimSpace(password),
-		OTP:      *oneTimePassword,
+		OTP:      oneTimePassword,
 	}
+
 	client := github.NewClient(transport.Client())
-	return &gitHubClient{client: client}
+	return &gitHubClient{client: client}, nil
 }
 
-func (gc *gitHubClient) repositoryList(ctx context.Context) error {
-	wrapped, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	repo, resp, err := gc.client.Repositories.List(wrapped, "", nil)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("repo %v\n", repo)
-	fmt.Printf("resp %v\n", resp)
-	return nil
-}
-
-func (gc *gitHubClient) createPR(ctx context.Context) error {
+func (gc *gitHubClient) createPR(
+	ctx context.Context,
+	prTitle string,
+	prDescription string,
+	commitBranch string,
+	prBranch string,
+	prRepoOwnerName string,
+	prRepoName string,
+) error {
 	wrapped, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	title := "title"
-	commitBranch := "commitBranch"
-	prBranch := "prBranch"
-	prDescription := "prDescription"
 	newPR := &github.NewPullRequest{
-		Title:               &title,
+		Title:               &prTitle,
 		Head:                &commitBranch,
 		Base:                &prBranch,
 		Body:                &prDescription,
 		MaintainerCanModify: github.Bool(true),
 	}
 
-	pr, _, err := gc.client.PullRequests.Create(wrapped, "prRepoOwner", "prRepo", newPR)
+	pr, _, err := gc.client.PullRequests.Create(wrapped, prRepoOwnerName, prRepoName, newPR)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 # ggc
-## ggc is go-git/github-client
+## ggc is go-git/go-github client
 
 #### you can use [go-git](https://github.com/go-git/go-git) and [go-github](https://github.com/google/go-github) easily.
 
